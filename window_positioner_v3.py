@@ -183,34 +183,45 @@ class WindowPositioner:
         v_gap = self.settings["v_gap"]
         num_windows = len(windows)
 
-        # Get window size from first window
-        win_w, win_h = self.get_window_size(windows[0][0])
-        win_w = max(win_w, 200)
-        win_h = max(win_h, 200)
-
-        # Calculate grid
+        # Get grid settings
         cols = self.settings["grid_cols"]
         rows = self.settings["grid_rows"]
 
-        if cols == 0:
-            cols = max(1, work_w // (win_w + h_gap))
-        if rows == 0:
-            rows = max(1, work_h // (win_h + v_gap))
+        # If grid is specified (not 0), calculate window size to fit
+        if cols > 0 and rows > 0:
+            # Calculate window size based on grid
+            win_w = (work_w - (cols - 1) * h_gap) // cols
+            win_h = (work_h - (rows - 1) * v_gap) // rows
+            win_w = max(win_w, 100)
+            win_h = max(win_h, 100)
+        else:
+            # Auto mode - use current window size
+            win_w, win_h = self.get_window_size(windows[0][0])
+            win_w = max(win_w, 200)
+            win_h = max(win_h, 200)
 
+            if cols == 0:
+                cols = max(1, work_w // (win_w + h_gap))
+            if rows == 0:
+                rows = max(1, work_h // (win_h + v_gap))
+
+        # Make sure we have enough cells
         while cols * rows < num_windows:
             cols += 1
+
+        # Position and resize each window
+        SWP_NOZORDER = 0x0004
 
         for i, (hwnd, title) in enumerate(windows):
             col = i % cols
             row = i // cols
             x = col * (win_w + h_gap)
             y = row * (win_h + v_gap)
-            x = max(0, min(x, work_w - win_w))
-            y = max(0, min(y, work_h - win_h))
 
             ShowWindow(hwnd, SW_RESTORE)
             time.sleep(0.03)
-            SetWindowPos(hwnd, None, x, y, 0, 0, 0x0045)
+            # Position AND resize window
+            SetWindowPos(hwnd, None, x, y, win_w, win_h, SWP_NOZORDER)
 
         return num_windows
 
