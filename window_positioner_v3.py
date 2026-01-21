@@ -393,6 +393,10 @@ class App:
         ttk.Entry(row2, textvariable=self.vgap_var, width=4).pack(side=tk.LEFT, padx=5)
         ttk.Label(row2, text="px").pack(side=tk.LEFT, padx=5)
 
+        # Position Button inside settings frame
+        ttk.Button(settings, text="POSITION WINDOWS",
+                   command=self.position_windows).pack(fill=tk.X, pady=5)
+
         # Zoom Settings
         zoom_frame = ttk.LabelFrame(main, text="Zoom Control", padding="10")
         zoom_frame.pack(fill=tk.X, pady=(0, 10))
@@ -460,14 +464,8 @@ class App:
         ttk.Button(link_frame, text="OPEN URL IN ALL PROFILES",
                    command=self.open_url_all).pack(fill=tk.X, pady=5)
 
-        # Buttons
-        style = ttk.Style()
-        style.configure('Big.TButton', font=('Helvetica', 10, 'bold'))
-
-        ttk.Button(main, text="POSITION WINDOWS", command=self.position_windows,
-                   style='Big.TButton').pack(fill=tk.X, pady=5, ipady=5)
-
-        ttk.Button(main, text="Minimize to Tray", command=self.minimize_to_tray).pack(fill=tk.X)
+        # Minimize button
+        ttk.Button(main, text="Minimize to Tray", command=self.minimize_to_tray).pack(fill=tk.X, pady=5)
 
         # Status
         self.status_var = tk.StringVar(value="Hotkey: CTRL+SHIFT+P")
