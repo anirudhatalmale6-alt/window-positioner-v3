@@ -1,7 +1,7 @@
 """
-Window Positioner v3 - With Zoom Control + Go to Link
+Window Positioner v4 - With Resize, Zoom Control + Go to Link
 Auto-arrange browser profile windows in a grid + Apply zoom to all profiles
-+ Open URL in new tabs for all profiles
++ Open URL in new tabs for all profiles + Resize windows to fixed size
 """
 
 import ctypes
@@ -58,7 +58,9 @@ DEFAULT_SETTINGS = {
     "h_gap": 10,
     "v_gap": 10,
     "hotkey": "ctrl+shift+p",
-    "zoom_level": 35
+    "zoom_level": 35,
+    "window_width": 550,
+    "window_height": 600
 }
 
 PROFILE_INDICATORS = ['whoerip', 'whoer', 'mimic']
@@ -256,6 +258,26 @@ class WindowPositioner:
 
         return len(windows)
 
+    def resize_all_windows(self, width, height):
+        """Resize all profile windows to fixed size"""
+        windows = self.get_profile_windows()
+        if not windows:
+            return 0
+
+        SWP_NOMOVE = 0x0002
+        SWP_NOZORDER = 0x0004
+
+        for hwnd, title in windows:
+            try:
+                ShowWindow(hwnd, SW_RESTORE)
+                time.sleep(0.05)
+                # SetWindowPos with SWP_NOMOVE keeps position, only changes size
+                SetWindowPos(hwnd, None, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER)
+            except Exception as e:
+                print(f"Error resizing {title}: {e}")
+
+        return len(windows)
+
     def open_url_in_all(self, url):
         """Open URL in new tab for all profile windows"""
         windows = self.get_profile_windows()
@@ -317,8 +339,8 @@ class App:
 
     def create_window(self):
         self.root = tk.Tk()
-        self.root.title("Window Positioner v3")
-        self.root.geometry("320x480")
+        self.root.title("Window Positioner v4")
+        self.root.geometry("320x560")
         self.root.resizable(False, False)
         self.root.protocol("WM_DELETE_WINDOW", self.minimize_to_tray)
 
@@ -381,6 +403,25 @@ class App:
         ttk.Button(zoom_frame, text="APPLY ZOOM TO ALL",
                    command=self.apply_zoom_all).pack(fill=tk.X, pady=5)
 
+        # Window Resize Settings
+        resize_frame = ttk.LabelFrame(main, text="Window Size", padding="10")
+        resize_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # Size inputs
+        size_row = ttk.Frame(resize_frame)
+        size_row.pack(fill=tk.X, pady=3)
+        ttk.Label(size_row, text="Size:").pack(side=tk.LEFT)
+        self.width_var = tk.StringVar(value=str(self.settings.get("window_width", 550)))
+        ttk.Entry(size_row, textvariable=self.width_var, width=5).pack(side=tk.LEFT, padx=5)
+        ttk.Label(size_row, text="x").pack(side=tk.LEFT)
+        self.height_var = tk.StringVar(value=str(self.settings.get("window_height", 600)))
+        ttk.Entry(size_row, textvariable=self.height_var, width=5).pack(side=tk.LEFT, padx=5)
+        ttk.Label(size_row, text="px").pack(side=tk.LEFT, padx=5)
+
+        # Resize Button
+        ttk.Button(resize_frame, text="RESIZE ALL WINDOWS",
+                   command=self.resize_all).pack(fill=tk.X, pady=5)
+
         # Go to Link Settings
         link_frame = ttk.LabelFrame(main, text="Go to Link", padding="10")
         link_frame.pack(fill=tk.X, pady=(0, 10))
@@ -429,6 +470,28 @@ class App:
             self.root.after(0, lambda: self.status_var.set(f"Done! Zoom applied to {count} windows"))
 
         threading.Thread(target=zoom_thread, daemon=True).start()
+
+    def resize_all(self):
+        try:
+            width = int(self.width_var.get())
+            height = int(self.height_var.get())
+        except ValueError:
+            self.status_var.set("Invalid size values")
+            return
+
+        self.settings["window_width"] = width
+        self.settings["window_height"] = height
+        save_settings(self.settings)
+
+        self.status_var.set(f"Resizing to {width}x{height}...")
+        self.root.update()
+
+        # Run in thread to not block UI
+        def resize_thread():
+            count = self.positioner.resize_all_windows(width, height)
+            self.root.after(0, lambda: self.status_var.set(f"Done! {count} windows resized to {width}x{height}"))
+
+        threading.Thread(target=resize_thread, daemon=True).start()
 
     def open_url_all(self):
         url = self.url_var.get().strip()
@@ -484,6 +547,7 @@ class App:
         if self.tray_icon is None:
             menu = pystray.Menu(
                 item('Position Windows', self.tray_position),
+                item('Resize Windows', self.tray_resize),
                 item('Apply Zoom', self.tray_zoom),
                 item('Open URL', self.tray_open_url),
                 item('Show', self.show_window),
@@ -494,6 +558,11 @@ class App:
 
     def tray_position(self):
         self.position_windows()
+
+    def tray_resize(self):
+        width = self.settings.get("window_width", 550)
+        height = self.settings.get("window_height", 600)
+        self.positioner.resize_all_windows(width, height)
 
     def tray_zoom(self):
         zoom = self.settings.get("zoom_level", 35)
