@@ -278,7 +278,7 @@ class WindowPositioner:
 
         return len(windows)
 
-    def open_url_in_all(self, url):
+    def open_url_in_all(self, url, apply_zoom_after=False, zoom_percent=50):
         """Open URL in new tab for all profile windows"""
         windows = self.get_profile_windows()
         if not windows:
@@ -292,27 +292,33 @@ class WindowPositioner:
         if not url.startswith('http://') and not url.startswith('https://'):
             url = 'https://' + url
 
+        # First pass: Open URL in all windows (fast)
         for hwnd, title in windows:
             try:
                 # Bring window to front
                 ShowWindow(hwnd, SW_RESTORE)
                 SetForegroundWindow(hwnd)
-                time.sleep(0.2)
+                time.sleep(0.1)
 
                 # Open new tab with Ctrl+T
                 keyboard.press_and_release('ctrl+t')
-                time.sleep(0.3)
+                time.sleep(0.15)
 
                 # Type the URL
-                keyboard.write(url, delay=0.01)
-                time.sleep(0.1)
+                keyboard.write(url, delay=0.005)
+                time.sleep(0.05)
 
                 # Press Enter to navigate
                 keyboard.press_and_release('enter')
-                time.sleep(0.3)
+                time.sleep(0.1)
 
             except Exception as e:
                 print(f"Error opening URL in {title}: {e}")
+
+        # Second pass: Apply zoom after pages have started loading
+        if apply_zoom_after:
+            time.sleep(2)  # Wait for pages to start loading
+            self.apply_zoom_to_all(zoom_percent)
 
         return len(windows)
 
@@ -434,6 +440,11 @@ class App:
         self.url_entry = ttk.Entry(url_row, textvariable=self.url_var, width=30)
         self.url_entry.pack(side=tk.LEFT, padx=5, fill=tk.X, expand=True)
 
+        # Auto-apply zoom checkbox
+        self.auto_zoom_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(link_frame, text="Apply zoom after page loads",
+                        variable=self.auto_zoom_var).pack(anchor=tk.W, pady=3)
+
         # Go to Link Button
         ttk.Button(link_frame, text="OPEN URL IN ALL PROFILES",
                    command=self.open_url_all).pack(fill=tk.X, pady=5)
@@ -499,13 +510,22 @@ class App:
             self.status_var.set("Please enter a URL")
             return
 
-        self.status_var.set(f"Opening URL in all profiles...")
+        apply_zoom = self.auto_zoom_var.get()
+        zoom = self.zoom_var.get()
+
+        if apply_zoom:
+            self.status_var.set(f"Opening URL + applying zoom...")
+        else:
+            self.status_var.set(f"Opening URL in all profiles...")
         self.root.update()
 
         # Run in thread to not block UI
         def url_thread():
-            count = self.positioner.open_url_in_all(url)
-            self.root.after(0, lambda: self.status_var.set(f"Done! URL opened in {count} windows"))
+            count = self.positioner.open_url_in_all(url, apply_zoom_after=apply_zoom, zoom_percent=zoom)
+            if apply_zoom:
+                self.root.after(0, lambda: self.status_var.set(f"Done! URL opened + zoom applied to {count} windows"))
+            else:
+                self.root.after(0, lambda: self.status_var.set(f"Done! URL opened in {count} windows"))
 
         threading.Thread(target=url_thread, daemon=True).start()
 
