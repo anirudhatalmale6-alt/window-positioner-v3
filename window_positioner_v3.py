@@ -292,25 +292,25 @@ class WindowPositioner:
         if not url.startswith('http://') and not url.startswith('https://'):
             url = 'https://' + url
 
-        # First pass: Open URL in all windows (fast)
+        # First pass: Open URL in all windows
         for hwnd, title in windows:
             try:
                 # Bring window to front
                 ShowWindow(hwnd, SW_RESTORE)
                 SetForegroundWindow(hwnd)
-                time.sleep(0.1)
+                time.sleep(0.15)
 
                 # Open new tab with Ctrl+T
                 keyboard.press_and_release('ctrl+t')
-                time.sleep(0.15)
+                time.sleep(0.3)
 
                 # Type the URL
-                keyboard.write(url, delay=0.005)
-                time.sleep(0.05)
+                keyboard.write(url, delay=0.01)
+                time.sleep(0.15)
 
                 # Press Enter to navigate
                 keyboard.press_and_release('enter')
-                time.sleep(0.1)
+                time.sleep(0.2)
 
             except Exception as e:
                 print(f"Error opening URL in {title}: {e}")
