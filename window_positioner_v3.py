@@ -94,12 +94,27 @@ class WindowPositioner:
         self.settings = settings
 
     def get_work_area(self):
+        """Get the work area of the PRIMARY monitor only (not all monitors)"""
+        # Get primary monitor info
+        SM_CXSCREEN = 0  # Primary screen width
+        SM_CYSCREEN = 1  # Primary screen height
+
+        # Get primary monitor dimensions
+        screen_w = user32.GetSystemMetrics(SM_CXSCREEN)
+        screen_h = user32.GetSystemMetrics(SM_CYSCREEN)
+
+        # Get work area (screen minus taskbar) for primary monitor
         class RECT(ctypes.Structure):
             _fields_ = [('left', ctypes.c_long), ('top', ctypes.c_long),
                         ('right', ctypes.c_long), ('bottom', ctypes.c_long)]
         rect = RECT()
         user32.SystemParametersInfoW(0x0030, 0, ctypes.byref(rect), 0)
-        return rect.right - rect.left, rect.bottom - rect.top
+
+        # Use the smaller of screen size or work area to stay on primary monitor
+        work_w = min(rect.right - rect.left, screen_w)
+        work_h = min(rect.bottom - rect.top, screen_h)
+
+        return work_w, work_h
 
     def get_window_title(self, hwnd):
         length = GetWindowTextLengthW(hwnd)
