@@ -173,7 +173,8 @@ class WindowPositioner:
         user32.GetWindowRect(hwnd, ctypes.byref(rect))
         return rect.right - rect.left, rect.bottom - rect.top
 
-    def position_windows(self):
+    def position_windows(self, resize=False):
+        """Position windows in a grid. If resize=True, also resize to saved size."""
         windows = self.get_profile_windows()
         if not windows:
             return 0
@@ -187,10 +188,9 @@ class WindowPositioner:
         cols = self.settings["grid_cols"]
         rows = self.settings["grid_rows"]
 
-        # Always use current window size - don't resize
-        win_w, win_h = self.get_window_size(windows[0][0])
-        win_w = max(win_w, 200)
-        win_h = max(win_h, 200)
+        # Use saved window size from settings
+        win_w = self.settings.get("window_width", 550)
+        win_h = self.settings.get("window_height", 600)
 
         # Auto calculate grid if set to 0
         if cols == 0:
@@ -202,9 +202,7 @@ class WindowPositioner:
         while cols * rows < num_windows:
             cols += 1
 
-        # Position windows WITHOUT changing size
         SWP_NOZORDER = 0x0004
-        SWP_NOSIZE = 0x0001
 
         for i, (hwnd, title) in enumerate(windows):
             col = i % cols
@@ -214,8 +212,8 @@ class WindowPositioner:
 
             ShowWindow(hwnd, SW_RESTORE)
             time.sleep(0.03)
-            # Position only - don't change size
-            SetWindowPos(hwnd, None, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE)
+            # Position AND resize window
+            SetWindowPos(hwnd, None, x, y, win_w, win_h, SWP_NOZORDER)
 
         return num_windows
 
