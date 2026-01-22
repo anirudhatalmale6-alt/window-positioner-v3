@@ -270,20 +270,28 @@ class WindowPositioner:
         return len(windows)
 
     def resize_all_windows(self, width, height):
-        """Resize all profile windows to fixed size"""
+        """Resize all profile windows to fixed size - keeps position"""
         windows = self.get_profile_windows()
         if not windows:
             return 0
 
-        SWP_NOMOVE = 0x0002
         SWP_NOZORDER = 0x0004
+
+        class RECT(ctypes.Structure):
+            _fields_ = [('left', ctypes.c_long), ('top', ctypes.c_long),
+                        ('right', ctypes.c_long), ('bottom', ctypes.c_long)]
 
         for hwnd, title in windows:
             try:
                 ShowWindow(hwnd, SW_RESTORE)
                 time.sleep(0.05)
-                # SetWindowPos with SWP_NOMOVE keeps position, only changes size
-                SetWindowPos(hwnd, None, 0, 0, width, height, SWP_NOMOVE | SWP_NOZORDER)
+                # Get current position
+                rect = RECT()
+                user32.GetWindowRect(hwnd, ctypes.byref(rect))
+                x = rect.left
+                y = rect.top
+                # Set new size while keeping the same position
+                SetWindowPos(hwnd, None, x, y, width, height, SWP_NOZORDER)
             except Exception as e:
                 print(f"Error resizing {title}: {e}")
 
